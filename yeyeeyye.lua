@@ -845,30 +845,23 @@ function moveAndDrop(startX, endX, step, y, itemid, worldd, idd)
     ::atla::
     for tilex = startX, endX, step do
         if checkTile(tilex, y, targetdrop) then
-            if step == 1 and not bot:isInTile(tilex - 1, y) then
-                bot:findPath(tilex - 1, y)
-            elseif step == -1 and not bot:isInTile(tilex + 1, y) then
-                bot:findPath(tilex + 1, y)
-            end
-            sleep(300)
-            bot:setDirection(step == -1)
-            sleep(500)
-            while inventory:getItemCount(itemid) == inventorycount do
+            if isPathFindable(tilex, y) then
+                if step == 1 and not bot:isInTile(tilex - 1, y) then
+                    bot:findPath(tilex - 1, y)
+                    reconnect(worldd, idd, tilex - 1, y, "normal")
+                elseif step == -1 and not bot:isInTile(tilex + 1, y) then
+                    bot:findPath(tilex + 1, y)
+                    reconnect(worldd, idd, tilex + 1, y, "normal")
+                end
+                sleep(300)
+                bot:setDirection(step == -1)
+                sleep(500)
                 bot:drop(itemid, targetdrop)
                 sleep(Delay_Drop)
-                reconnect(worldd, idd, tilex, y, "normal")
-                if inventory:getItemCount(itemid) == inventorycount then
-                    if Drop_Direction == "right" then
-                        bot:moveRight()
-                    else
-                        bot:moveLeft()
-                    end
-                    sleep(500)
+                if inventory:getItemCount(itemid) == 0 or inventory:getItemCount(itemid) ~= inventorycount then
+                    break
                 end
             end
-        end
-        if inventory:getItemCount(itemid) == 0 or inventory:getItemCount(itemid) ~= inventorycount then
-            break
         end
     end
     reconnect(worldd, idd, bot.x, bot.y, "normal")
