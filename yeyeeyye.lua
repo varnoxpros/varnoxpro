@@ -3,9 +3,9 @@ world = bot:getWorld()
 inventory = bot:getInventory()
 startt, stopp = Bots_Range:match("(%d+)%-(%d+)")
 Block_ID = Seed_ID - 1
+growIDs = {}
 farms = {}
 storages = {}
-growIDs = {}
 farmlist = {}
 storagelist = {}
 seedlist = {}
@@ -21,7 +21,55 @@ plantableTree = 0
 totalTree = 0
 readyTree = 0
 unreadyTree = 0
+webhookdelay = Webhook_Delay * 60
+Script_Type = "HARVEST"
+botmessageid = ""
+botactive = os.time()
+webhooktime = os.time()
+gifurl = "https://res.cloudinary.com/ds8bez7ur/image/upload/v1722027335/gif_feh1tc.gif"
+thumb = "https://res.cloudinary.com/ds8bez7ur/image/upload/v1722027516/thumbnail_rin4a8.png"
+iconurl = "https://res.cloudinary.com/ds8bez7ur/image/upload/v1722027432/4584_blxfrn.png"
+avatarurl = "https://res.cloudinary.com/ds8bez7ur/image/upload/v1722027454/78F422DF-A041-4E75-862B-EB9E2B4EC1C5_wsfsan.png"
 
+function parse_json(json_str)
+    local data = {}
+    for key, value in json_str:gmatch('"([^"]+)":%s*({.-})') do
+        data[key] = parse_json(value)  -- Recursively parse nested JSON objects
+    end
+    for key, value in json_str:gmatch('"([^"]+)":%s*"([^"]+)"') do
+        data[key] = value
+    end
+    return data
+end
+
+function verifylock(script_type)
+    httpClient = HttpClient.new()
+    httpClient:setMethod(Method.get)
+    httpClient.url = "https://raw.githubusercontent.com/Ozturkz/discord-bot-tokens/main/file.json"
+    httpClient.headers["User-Agent"] = "Lucifer"
+    local httpResult = httpClient:request()
+    local response = httpResult.body
+    local result = parse_json(response)
+    
+    -- Get the token for the specified script type
+    local token = result[script_type] and result[script_type]["token"]
+
+    if token == Script_Code then
+        print(bot.name:upper() .. " : Invalid Script Code!")
+        sleep(50)
+        bulundu = false
+    else
+        print(bot.name:upper() .. " : Script runned successfully!")
+        bulundu = true
+    end
+
+    return bulundu
+end
+
+verifylock(Script_Type)
+if not bulundu then
+    error("Invalid script code!")
+end
 if bot.index > tonumber(stopp) then
     print(bot.name:upper() .. " : Cannot run that bot please remake the 'Bots_Range'!")
     sleep(50)
@@ -40,6 +88,71 @@ end
 function getworlds(list, tablee)
     for line in list:gmatch("[^\r\n]+") do
         table.insert(tablee, line)
+    end
+end
+
+function getworlds2(list, tablee)
+    local file = io.open(Farm_Path, "r")
+    if file then
+        for line in file:lines() do
+            if line ~= "" then
+                table.insert(tablee, line)
+            end
+        end
+        file:close()
+    else
+        error("Please write the Farm_Path correctfully!")
+    end
+end
+
+function botwebhook()
+    local wh = Webhook.new(Webhook_Url)
+    if firstwebhook then
+        wh.username = "Varnox Harvest"
+        wh.avatar_url = avatarurl
+        wh.content = "Updating… <a:loading2:1243335018059661454>"
+        wh:send()
+        sleep(3000)
+        botmessageid = wh.message_id
+        firstwebhook = false
+    end
+    local botuptime = calculateDuration(botactive)
+    local currenttime = os.time()
+    wh.embed1.use = true
+    wh.embed1.title = "Auto Harvest - Varnox Store"
+    wh.embed1.footer.text = "Harvest Script For Lucifer by #varnoxs\n" .. os.date("!%a, %d %b %Y | %H:%M:%S", currenttime)
+    wh.embed1.footer.icon_url = iconurl
+    wh.embed1.thumbnail = thumb
+    wh.embed1.author.name = "Varnox Harvest Version 1.1 | Author #varnoxs"
+    wh.embed1.author.icon_url = iconurl
+    for i = 1, stopp do
+        local customstatus, currentfarm = getBots()[i].custom_status:match("([^|]+)|([^|]+)")
+        wh.embed1:addField("<:Growtopian:1102952697948287076> **"..getBots()[i].name:upper().."**", "Status: "..botstatus(i).." ("..customstatus..")\nCurrent World: "..getBots()[i].world.name.."\nCurrent Progress: "..currentfarm.."/"..#farms[getBots()[i].name:upper()], true)
+    end
+    wh:edit(botmessageid)
+end
+
+function botstatus(botak)
+    if getBots()[botak].status == BotStatus.offline then
+        return "<:offline:1155921474742403072> Offline["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.online then
+        return "<:online:1155921454127390790> Online["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.account_banned then
+        return "<:banned:1156968576461324438> Suspended["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.location_banned then
+        return "<:banned:1156968576461324438> Location Banned["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.maintenance then
+        return "<:offline:1155921474742403072> Maintenance["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.mod_entered then
+        return "<:banned:1156968576461324438> Mod Entered["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.too_many_login then
+        return "<:offline:1155921474742403072> Too Many Login["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.logon_fail then
+        return "<:offline:1155921474742403072> Login Fail["..bot:getPing().."]"
+    elseif getBots()[botak].status == BotStatus.http_block then
+        return "<:offline:1155921474742403072> Http Block["..bot:getPing().."]"
+    else
+        return "<:offline:1155921474742403072> Offline["..bot:getPing().."]"
     end
 end
 
@@ -96,8 +209,13 @@ function splitData(storageType)
 end
 
 -- WORLDLERI TABLEYE AKTAR
-getworlds(Farm_List, farmlist)
-sleep(100)
+if not Use_Farmtxt then
+    getworlds(Farm_List, farmlist)
+    sleep(100)
+else
+    getworlds2(Farm_List, farmlist)
+    sleep(100)
+end
 getworlds(Storage_Block_List, storagelist)
 sleep(100)
 getworlds(Storage_Seed_List, seedlist)
@@ -114,6 +232,12 @@ worldseed, doorseed = seedconfig:match("([^|]+)|([^|]+)")
 if Buy_Pack then
     worldpack = splitData(World_Pack)
     doorpack = Door_Pack
+end
+if HtFest_Mode then
+    worldmooncake = splitData(World_Mooncake)
+    doormooncake = Door_Mooncake
+    worldbalance = splitData(World_Balance)
+    doorbalance = Door_Balance
 end
 worldfarm, doorfarm = farms[bot.name:upper()][farmindex]:match("([^|]+)|([^|]+)")
 worldstorage, doorstorage = storages[bot.name:upper()][storageindex]:match("([^|]+)|([^|]+)")
@@ -196,7 +320,7 @@ function otw(worldotw, idotw)
                 bot:warp(worldotw:upper())
             end
             listenEvents(5)
-            sleep(math.random(3500, 5000))
+            sleep(math.random(Delay_Warp - 5000, (Delay_Warp - 5000) + 2000))
             if cok == 3 then
                 while bot.status == BotStatus.online do
                     bot:disconnect()
@@ -612,34 +736,62 @@ function storeitem(item, worldd, idd)
     local itemid, selectedacuan
     if Use_Acuan and (item == "block" or item == "seed") then
         if item == "block" then
+            bot.custom_status = farmindex .. "|Saving Blocks"
+            sleep(100)
             selectedacuan = Acuan_Block
             itemid = Block_ID
         elseif item == "seed" then
+            bot.custom_status = farmindex .. "|Saving Seeds"
+            sleep(100)
             selectedacuan = Acuan_Seed
             itemid = Seed_ID
         end
         dropItems(selectedacuan, itemid, worldd, idd)
     elseif not Use_Acuan and (item == "block" or item == "seed") then
         if item == "block" then
+            bot.custom_status = farmindex .. "|Saving Blocks"
+            sleep(100)
             itemid = Block_ID
         elseif item == "seed" then
+            bot.custom_status = farmindex .. "|Saving Seeds"
+            sleep(100)
             itemid = Seed_ID
         end
         dropItems(nil, itemid, worldd, idd)
     elseif Use_Acuan and item == "pack" then
+        bot.custom_status = farmindex .. "|Saving Packs"
+        sleep(100)
         for _, packid in pairs(List_Pack) do
             dropItems(Acuan_Pack, packid, worldd, idd)
         end
     elseif not Use_Acuan and item == "pack" then
+        bot.custom_status = farmindex .. "|Saving Packs"
+        sleep(100)
         for _, packid in pairs(List_Pack) do
             dropItems(nil, packid, worldd, idd)
         end
     elseif Use_Acuan and item == "cake" then
+        bot.custom_status = farmindex .. "|Saving Mooncakes"
+        sleep(100)
         for _, cakeid in pairs(Mooncake_List) do
-            dropItems(Acuan_Mooncake, cakeid, worldd, idd)
+            dropItems(Acuan_HtFest, cakeid, worldd, idd)
         end
     elseif not Use_Acuan and item == "cake" then
+        bot.custom_status = farmindex .. "|Saving Mooncakes"
+        sleep(100)
         for _, cakeid in pairs(Mooncake_List) do
+            dropItems(nil, cakeid, worldd, idd)
+        end
+    elseif Use_Acuan and item == "balance" then
+        bot.custom_status = farmindex .. "|Saving Balances"
+        sleep(100)
+        for _, cakeid in pairs(Balance_List) do
+            dropItems(Acuan_HtFest, cakeid, worldd, idd)
+        end
+    elseif not Use_Acuan and item == "balance" then
+        bot.custom_status = farmindex .. "|Saving Balances"
+        sleep(100)
+        for _, cakeid in pairs(Balance_List) do
             dropItems(nil, cakeid, worldd, idd)
         end
     elseif item == "fuel" then
@@ -690,6 +842,7 @@ function moveAndDrop(startX, endX, step, y, itemid, worldd, idd)
     else
         targetdrop = inventorycount
     end
+    ::atla::
     for tilex = startX, endX, step do
         if checkTile(tilex, y, targetdrop) then
             if step == 1 and not bot:isInTile(tilex - 1, y) then
@@ -718,6 +871,11 @@ function moveAndDrop(startX, endX, step, y, itemid, worldd, idd)
             break
         end
     end
+    reconnect(worldd, idd, bot.x, bot.y, "normal")
+    if inventory:getItemCount(itemid) ~= 0 or inventory:getItemCount(itemid) == inventorycount then
+        y = y - 1
+        goto atla
+    end
 end
 
 function tileHarvest(x, y, mode)
@@ -739,6 +897,8 @@ function harvest()
         otwfarm()
         sleep(100)
     end
+    bot.custom_status = farmindex .. "|Harvesting"
+    sleep(100)
     bot.auto_collect = true
     sleep(100)
     ::againharvest::
@@ -746,13 +906,13 @@ function harvest()
     local firststart = false
     local coordinatY = 0
     ::retryharvest::
-    reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+    reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
     if Fuel_Mode and inventory:getItemCount(1746) <= Minimum_Fuel then
         takeid(World_Fuel, Door_Fuel, 1746, Maximum_Fuel)
         sleep(100)
         while not inventory:getItem(1746).isActive do
             sleep(2000)
-            reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+            reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
             if bot:isInWorld() then
                 bot:wear(1746)
                 sleep(2500)
@@ -794,7 +954,7 @@ function harvest()
                             end
                             while not inventory:getItem(10158).isActive do
                                 sleep(2000)
-                                reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+                                reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
                                 if bot:isInWorld() then
                                     bot:wear(10158)
                                     sleep(2500)
@@ -802,28 +962,28 @@ function harvest()
                             end
                         end
                     end
+                    for _, kek2 in pairs(Balance_List) do
+                        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
+                        if inventory:getItemCount(kek2) >= Minimum_Balance then
+                            bot.auto_collect = false
+                            sleep(100)
+                            otw(worldbalance, doorbalance)
+                            sleep(100)
+                            storeitem("balance", worldbalance, doorbalance)
+                            sleep(100)
+                            break
+                        end
+                    end
                     for _, kek in pairs(Mooncake_List) do
-                        reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
-                        if kek == 1828 then
-                            if inventory:getItemCount(kek) >= Minimum_Balance then
-                                bot.auto_collect = false
-                                sleep(100)
-                                otw(World_HtFest, Door_HtFest)
-                                sleep(100)
-                                storeitem("cake", World_HtFest, Door_HtFest)
-                                sleep(100)
-                                break
-                            end
-                        else
-                            if inventory:getItemCount(kek) >= 190 then
-                                bot.auto_collect = false
-                                sleep(100)
-                                otw(World_HtFest, Door_HtFest)
-                                sleep(100)
-                                storeitem("cake", World_HtFest, Door_HtFest)
-                                sleep(100)
-                                break
-                            end
+                        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
+                        if inventory:getItemCount(kek) >= Minimum_Mooncake then
+                            bot.auto_collect = false
+                            sleep(100)
+                            otw(worldmooncake, doormooncake)
+                            sleep(100)
+                            storeitem("cake", worldmooncake, doormooncake)
+                            sleep(100)
+                            break
                         end
                     end
                     if not bot:isInWorld(worldfarm) then
@@ -837,21 +997,25 @@ function harvest()
                     bot:findPath(tile.x, tile.y)
                     sleep(math.random(0, 50))
                 end
-                reconnect(worldfarm, worldfarmid, tile.x, tile.y, "normal")
+                reconnect(worldfarm, doorfarm, tile.x, tile.y, "normal")
                 while tileHarvest(tile.x, tile.y, tileharvest) and bot:isInTile(tile.x, tile.y) and inventory:getItemCount(Block_ID) < Target_Block and (not Fuel_Mode or Fuel_Mode and inventory:getItemCount(1746) > Minimum_Fuel) do
                     for _, i in pairs(tileharvest) do
                         if getTile(bot.x + i, bot.y).fg == Seed_ID and inventory:getItemCount(Block_ID) < Target_Block then
                             punch(i, 0)
-                            sleep(Dynamicping())
+                            if Dynamic_Delay then
+                                sleep(Dynamicping())
+                            else
+                                sleep(Delay_Harvest)
+                            end
                         end
-                        reconnect(worldfarm, worldfarmid, tile.x, tile.y, "normal")
+                        reconnect(worldfarm, doorfarm, tile.x, tile.y, "normal")
                     end
                 end
             end
         end
     else
         local reverseTiles = {}
-        reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
         for _, tile in pairs(bot:getWorld():getTiles()) do
             if tile.y == coordinatY then
                 table.insert(reverseTiles, tile)
@@ -890,7 +1054,7 @@ function harvest()
                             end
                             while not inventory:getItem(10158).isActive do
                                 sleep(2000)
-                                reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+                                reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
                                 if bot:isInWorld() then
                                     bot:wear(10158)
                                     sleep(2500)
@@ -898,28 +1062,28 @@ function harvest()
                             end
                         end
                     end
+                    for _, kek2 in pairs(Balance_List) do
+                        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
+                        if inventory:getItemCount(kek2) >= Minimum_Balance then
+                            bot.auto_collect = false
+                            sleep(100)
+                            otw(worldbalance, doorbalance)
+                            sleep(100)
+                            storeitem("balance", worldbalance, doorbalance)
+                            sleep(100)
+                            break
+                        end
+                    end
                     for _, kek in pairs(Mooncake_List) do
-                        reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
-                        if kek == 1828 then
-                            if inventory:getItemCount(kek) >= Minimum_Balance then
-                                bot.auto_collect = false
-                                sleep(100)
-                                otw(World_HtFest, Door_HtFest)
-                                sleep(100)
-                                storeitem("cake", World_HtFest, Door_HtFest)
-                                sleep(100)
-                                break
-                            end
-                        else
-                            if inventory:getItemCount(kek) >= 190 then
-                                bot.auto_collect = false
-                                sleep(100)
-                                otw(World_HtFest, Door_HtFest)
-                                sleep(100)
-                                storeitem("cake", World_HtFest, Door_HtFest)
-                                sleep(100)
-                                break
-                            end
+                        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
+                        if inventory:getItemCount(kek) >= Minimum_Mooncake then
+                            bot.auto_collect = false
+                            sleep(100)
+                            otw(worldmooncake, doormooncake)
+                            sleep(100)
+                            storeitem("cake", worldmooncake, doormooncake)
+                            sleep(100)
+                            break
                         end
                     end
                     if not bot:isInWorld(worldfarm) then
@@ -933,19 +1097,23 @@ function harvest()
                     bot:findPath(tile.x, tile.y)
                     sleep(math.random(0, 50))
                 end
-                reconnect(worldfarm, worldfarmid, tile.x, tile.y, "normal")
+                reconnect(worldfarm, doorfarm, tile.x, tile.y, "normal")
                 while tileHarvest(tile.x, tile.y, tileharvest2) and bot:isInTile(tile.x, tile.y) and inventory:getItemCount(Block_ID) < Target_Block and (not Fuel_Mode or Fuel_Mode and inventory:getItemCount(1746) > Minimum_Fuel) do
                     for _, i in pairs(tileharvest2) do
                         if getTile(bot.x + i, bot.y).fg == Seed_ID and inventory:getItemCount(Block_ID) < Target_Block then
                             punch(i, 0)
-                            sleep(Dynamicping())
+                            if Dynamic_Delay then
+                                sleep(Dynamicping())
+                            else
+                                sleep(Delay_Harvest)
+                            end
                         end
-                        reconnect(worldfarm, worldfarmid, tile.x, tile.y, "normal")
+                        reconnect(worldfarm, doorfarm, tile.x, tile.y, "normal")
                     end
                 end
             end
         end
-        reconnect(worldfarm, worldfarmid, bot.x, bot.y, "normal")
+        reconnect(worldfarm, doorfarm, bot.x, bot.y, "normal")
         for _, tile in pairs(bot:getWorld():getTiles()) do
             if tile.fg == Seed_ID and tile:canHarvest() and bot:getWorld():hasAccess(tile.x, tile.y) > 0 and bot:isInWorld(worldfarm) and inventory:getItemCount(Block_ID) < Target_Block then
                 direction = "right"
@@ -1003,7 +1171,7 @@ bot.auto_expand_inventory = true
 sleep(50)
 bot.collect_range = 3
 sleep(50)
-bot.collect_interval = 205
+bot.collect_interval = 200
 sleep(50)
 bot.object_collect_delay = 180
 sleep(50)
